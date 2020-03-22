@@ -8,5 +8,4 @@
 - d1.`python3 trt_yolo3_module_1batch.py`, if you choose **c1**
 - d2.`python3 trt_yolo3_module_multibatch.py`,if you choose **c2**. It detects 4 images at a time.
 ## 3. Test yolov3-tiny-onnx-TensorRT
-- This project has been packaged into **class**, so you can use it directly according `import xx` command.
 - a. `python2 yolov3_tiny_to_onnx.py`
