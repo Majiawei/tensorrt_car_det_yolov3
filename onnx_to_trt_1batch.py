@@ -48,8 +48,8 @@ def main():
     """Create a TensorRT engine for ONNX-based YOLOv3-608 and run inference."""
 
     # Try to load a previously generated YOLOv3-608 network graph in ONNX format:
-    onnx_file_path = 'fast-yolov3.onnx'
-    engine_file_path = "fast-yolov3.trt"
+    onnx_file_path = 'yolov3.onnx'
+    engine_file_path = "yolov3.trt"
     get_engine(onnx_file_path, engine_file_path)
 
 if __name__ == '__main__':

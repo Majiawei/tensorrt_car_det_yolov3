@@ -46,8 +46,9 @@ def predict_transform(prediction, inp_dim, anchors, num_classes, CUDA = True):
 
 
     #Sigmoid the  centre_X, centre_Y. and object confidencce
-    prediction[:,:,0] = torch.sigmoid(prediction[:,:,0])
-    prediction[:,:,1] = torch.sigmoid(prediction[:,:,1])
+    # prediction[:,:,0] = torch.sigmoid(prediction[:,:,0])
+    # prediction[:,:,1] = torch.sigmoid(prediction[:,:,1])
+    prediction[:, :, :2] = torch.sigmoid(prediction[:, :, :2])
     prediction[:,:,4] = torch.sigmoid(prediction[:,:,4])
     
 
@@ -108,7 +109,6 @@ def dynamic_write_results(prediction, confidence, num_classes, nms=True, nms_con
     dets = write_results(prediction.clone(), confidence, num_classes, nms, nms_conf)
     if isinstance(dets, int):
         return dets
-
     if dets.shape[0] > 100:
         nms_conf -= 0.05
         dets = write_results(prediction_bak.clone(), confidence, num_classes, nms, nms_conf)
@@ -119,7 +119,6 @@ def dynamic_write_results(prediction, confidence, num_classes, nms=True, nms_con
 def write_results(prediction, confidence, num_classes, nms=True, nms_conf=0.4):
     conf_mask = (prediction[:, :, 4] > confidence).float().float().unsqueeze(2)
     prediction = prediction * conf_mask
-
     try:
         ind_nz = torch.nonzero(prediction[:,:,4]).transpose(0,1).contiguous()
     except:
@@ -162,9 +161,9 @@ def write_results(prediction, confidence, num_classes, nms=True, nms_conf=0.4):
             continue
 
         #WE will do NMS classwise
-        #print(img_classes)
+        # print(img_classes)
         for cls in img_classes:
-            if cls != 0: #0 is the person
+            if cls != 0: #0 is the car
                 continue
             #get the detections with one particular class
             cls_mask = image_pred_*(image_pred_[:,-1] == cls).float().unsqueeze(1)

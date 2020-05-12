@@ -758,7 +758,7 @@ def main():
         raise Exception("This script is only compatible with python2, please re-run this script with python2. The rest of this sample can be run with either version of python.")
 
     # Download the config for YOLOv3 if not present yet, and analyze the checksum:
-    cfg_file_path = "fast-yolov3-carplate.cfg"
+    cfg_file_path = "yolov3-test.cfg"
     # cfg_file_path = download_file(
     #     'yolov3.cfg',
     #     'https://raw.githubusercontent.com/pjreddie/darknet/f86901f6177dfc6116360a13cc06ab680e0c86b0/cfg/yolov3.cfg',
@@ -779,19 +779,19 @@ def main():
     # In above layer_config, there are three outputs that we need to know the output
     # shape of (in CHW format):
     output_tensor_dims = OrderedDict()
-    output_tensor_dims['022_convolutional'] = [24, 19, 19]
-    output_tensor_dims['030_convolutional'] = [24, 38, 38]
-    output_tensor_dims['038_convolutional'] = [24, 76, 76]
-    # output_tensor_dims['082_convolutional'] = [255, 19, 19]
-    # output_tensor_dims['094_convolutional'] = [255, 38, 38]
-    # output_tensor_dims['106_convolutional'] = [255, 76, 76]
+    # output_tensor_dims['022_convolutional'] = [24, 19, 19]
+    # output_tensor_dims['030_convolutional'] = [24, 38, 38]
+    # output_tensor_dims['038_convolutional'] = [24, 76, 76]
+    output_tensor_dims['082_convolutional'] = [18, 19, 19]
+    output_tensor_dims['094_convolutional'] = [18, 38, 38]
+    output_tensor_dims['106_convolutional'] = [18, 76, 76]
 
     # Create a GraphBuilderONNX object with the known output tensor dimensions:
     builder = GraphBuilderONNX(output_tensor_dims)
 
     # We want to populate our network with weights later, that's why we download those from
     # the official mirror (and verify the checksum):
-    weights_file_path = "fast-yolov3-carplate_final.weights"
+    weights_file_path = "yolov3_165000.weights"
     # weights_file_path = download_file(
     #     'yolov3.weights',
     #     'https://pjreddie.com/media/files/yolov3.weights',
@@ -810,7 +810,7 @@ def main():
     onnx.checker.check_model(yolov3_model_def)
 
     # Serialize the generated ONNX graph to this file:
-    output_file_path = 'fast-yolov3.onnx'
+    output_file_path = 'yolov3.onnx'
     onnx.save(yolov3_model_def, output_file_path)
 
 if __name__ == '__main__':

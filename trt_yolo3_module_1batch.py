@@ -7,6 +7,7 @@ import time
 from base_module import BaseModule
 from util import *
 from alpha_yolo3_module_drawing import drawing
+import os
 
 # from data_processing import PreprocessYOLO
 
@@ -26,10 +27,14 @@ def get_engine(engine_file_path):
 
 
 def prep_image(orig_im, inp_dim):
+    t1 = time.time()
     dim = orig_im.shape[1], orig_im.shape[0]
     img = (letterbox_image(orig_im, (inp_dim, inp_dim)))
     img_ = img[:, :, ::-1].transpose((2, 0, 1)).copy() #(3 608 608)
+    # img_ = img[:, :, :-1].permute(2, 0, 1).clone()
     img_ = torch.from_numpy(img_).float().div(255.0).unsqueeze(0)
+    # img_ = img_.float().div(255.0).unsqueeze(0)
+    print("prep_image time:"+str(time.time()-t1))
     img_ = img_.numpy()
     return img_, orig_im, dim
 
@@ -39,8 +44,12 @@ def letterbox_image(img, inp_dim):
     w, h = inp_dim
     new_w = int(img_w * min(w / img_w, h / img_h))
     new_h = int(img_h * min(w / img_w, h / img_h))
+    t1 = time.time()
     resized_image = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+    print("resize time:",str(time.time()-t1))
     canvas = np.full((inp_dim[1], inp_dim[0], 3), 128)
+    # resized_image = torch.from_numpy(resized_image)
+    # canvas = torch.from_numpy(canvas)
     canvas[(h - new_h) // 2:(h - new_h) // 2 + new_h, (w - new_w) // 2:(w - new_w) // 2 + new_w, :] = resized_image
     return canvas
 
@@ -103,25 +112,20 @@ class trt_yolo3_module(BaseModule):
             write = 0
             for output, shape, anchors in zip(trt_outputs, self.output_shapes, self.yolo_anchors):
                 output = output.reshape(shape)
-                trt_output = torch.from_numpy(output).cuda().data
-                # trt_output = trt_output.data
-                # cuda_time1 = time.time()
+                trt_output = torch.from_numpy(output).cuda().data # transform to Tensor
                 trt_output = predict_transform(trt_output, self.inp_dim, anchors, self.num_classes, self.use_cuda)
-                # cuda_time2 = time.time()
-                # print('CUDA time : %f' % (cuda_time2 - cuda_time1))
                 if type(trt_output) == int:
                     continue
-
                 if not write:
                     detections = trt_output
                     write = 1
-
                 else:
                     detections = torch.cat((detections, trt_output), 1)
 
             o_time1 = time.time()
             print('TensorRT decode time : %f' % (o_time1-inference_end))
             dets = dynamic_write_results(detections, 0.5, self.num_classes, nms=True, nms_conf=0.45)
+            print(dets)
             o_time2 = time.time()
             print('After process(nms) time : %f' %(o_time2-o_time1))
             class_list_all = []
@@ -129,6 +133,7 @@ class trt_yolo3_module(BaseModule):
             conf_list_all = []
             if not isinstance(dets,int):
                 dets = dets.cpu()
+                print(dets)
                 im_dim_list = torch.index_select(im_dim_list,0, dets[:, 0].long())
                 scaling_factor = torch.min(self.inp_dim / im_dim_list, 1)[0].view(-1, 1)
                 dets[:, [1, 3]] -= (self.inp_dim - scaling_factor * im_dim_list[:, 0].view(-1, 1)) / 2
@@ -137,6 +142,7 @@ class trt_yolo3_module(BaseModule):
                 for j in range(dets.shape[0]):
                     dets[j, [1, 3]] = torch.clamp(dets[j, [1, 3]], 0.0, im_dim_list[j, 0])
                     dets[j, [2, 4]] = torch.clamp(dets[j, [2, 4]], 0.0, im_dim_list[j, 1])
+                print(dets)
                 boxes = dets[:, 1:5]
                 scores = dets[:, 5:6]
                 for k in range(len(orig_img)):
@@ -161,7 +167,7 @@ class trt_yolo3_module(BaseModule):
                     class_list_all.append(class_list)
             print('back-to-cpu time : %f' %(time.time()-o_time2))
             print('all time : %f' % (time.time()-inference_start))
-
+        print(class_list_all,box_list_all,conf_list_all)
         return (class_list_all,box_list_all,conf_list_all)            
 
 
@@ -187,8 +193,9 @@ class trt_yolo3_module(BaseModule):
         img_list = []
         for dic in frame_dic_list:
             img_list.append(dic['img'])
-        
+        pro_time_start = time.time()
         procession_tuple = self.preparing(img_list)
+        print('procession time: %f' % (time.time()-pro_time_start))
         # (img, orig_img, im_name, im_dim_list) = procession_tuple
         (class_list_all,box_list_all,conf_list_all) = self.detection(procession_tuple)
         if len(class_list_all) == 0:
@@ -213,17 +220,18 @@ if __name__ == '__main__':
     init_dict = {'trt':"fast-yolov3.trt", 'use_cuda':True}
     alpha_yolo3_unit = trt_yolo3_module(init_dict)
 
-    input_dic_list = []
-    img_path = './images/car1.jpg'
-    dic = {'img':cv2.imread(img_path),'data':{},'info':{}}
-    input_dic_list.append(dic)
+    for image_name in os.listdir('./images'):
+        img_path = os.path.join('./images',image_name)
+        input_dic_list = []
+        dic = {'img':cv2.imread(img_path),'data':{},'info':{}}
+        input_dic_list.append(dic)
 
-    # while True:
-    output_dic_list = alpha_yolo3_unit.process_frame_batch(input_dic_list)
-    for dic in output_dic_list:
-        img_array = dic['img']
-        drawing(img_array,dic)	
-        # cv2.imshow('show',img_array)
-        cv2.imwrite('test.jpg',img_array)
+        # while True:
+        output_dic_list = alpha_yolo3_unit.process_frame_batch(input_dic_list)
+        for dic in output_dic_list:
+            img_array = dic['img']
+            drawing(img_array,dic)
+            # cv2.imshow('show',img_array)
+            cv2.imwrite(os.path.join('./results',image_name),img_array)
 
         # cv2.waitKey(5000)

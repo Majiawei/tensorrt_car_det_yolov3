@@ -211,15 +211,19 @@ if __name__ == '__main__':
     init_dict = {'trt':"fast-yolov3.trt", 'use_cuda':True}
     alpha_yolo3_unit = trt_yolo3_module(init_dict)
 
-    input_dic_list = []
+
     for filename in os.listdir('./images'):
-    	if 'car' in filename:
-    		img_path = './images/' + filename
-    		dic = {'img':cv2.imread(img_path),'data':{},'info':{}}
-    		input_dic_list.append(dic)
-    		pass
-    	pass
-    print(len(input_dic_list))
+        if 'car' in filename:
+            input_dic_list = []
+            img_path = './images/' + filename
+            dic = {'img':cv2.imread(img_path),'data':{},'info':{}}
+            input_dic_list.append(dic)
+            output_dic_list = alpha_yolo3_unit.process_frame_batch(input_dic_list)
+            for index, dic in enumerate(output_dic_list):
+                img_array = dic['img']
+                drawing(img_array, dic)
+                cv2.imwrite("./results/det_car_{}.jpg".format(str(filename)), img_array)
+    # print(len(input_dic_list))
     # img_path = './images/car1.jpg'
     # dic = {'img':cv2.imread(img_path),'data':{},'info':{}}
     # input_dic_list.append(dic)
@@ -237,10 +241,10 @@ if __name__ == '__main__':
     # input_dic_list.append(dic)
 
     # while True:
-    output_dic_list = alpha_yolo3_unit.process_frame_batch(input_dic_list)
-    for index,dic in enumerate(output_dic_list):
-        img_array = dic['img']
-        drawing(img_array,dic)
-        cv2.imwrite("./results/det_car_{}.jpg".format(str(index)), img_array)
+    # output_dic_list = alpha_yolo3_unit.process_frame_batch(input_dic_list)
+    # for index,dic in enumerate(output_dic_list):
+    #     img_array = dic['img']
+    #     drawing(img_array,dic)
+    #     cv2.imwrite("./results/det_car_{}.jpg".format(str(index)), img_array)
         # cv2.imshow('show',img_array)
         # cv2.waitKey(0)
